@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <link href="style.css" rel="stylesheet">
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+</head>
+
+<body>
+
+<h2>Air Traffic Demographics (2011-2019)</h2>
+
+<svg></svg>
+
+<p>Data acquired from <a href="https://data.sfgov.org/Transportation/Air-Traffic-Passenger-Statistics/rkru-6vcg/data">data.sfgov.org/Transportation/Air-Traffic-Passenger-Statistics/rkru-6vcg/data</a> on February 10, 2020.</p>
+<p>Created by: Aryan Choudhary</p>
+
+<script>
+
+// location of data file
+let csv = 'cyclic air trffic.csv';
+
+// configuration of svg/plot area
+let config = {
+  'svg': {},
+  'margin': {},
+  'plot': {}
+};
+
+config.svg.height = 490;
+config.svg.width = 950; // golden ratio
+
+config.margin.top = 10;
+config.margin.right = 10;
+config.margin.bottom = 50;
+config.margin.left = 80;
+
+config.plot.x = config.margin.left;
+config.plot.y = config.margin.top;
+config.plot.width = config.svg.width - config.margin.left - config.margin.right;
+config.plot.height = config.svg.height - config.margin.top - config.margin.bottom;
+
+// setup svg
+let svg = d3.select('body').select('svg');
+svg.attr('width', config.svg.width);
+svg.attr('height', config.svg.height);
+
+// setup plot area
+let plot = svg.append('g');
+plot.attr('id', 'plot');
+plot.attr('transform', translate(config.plot.x, config.plot.y));
+
+// use a rect to illustrate plot area
+let rect = plot.append('rect');
+rect.attr('id', 'background');
+
+rect.attr('x', 0);
+rect.attr('y', 0);
+rect.attr('width', config.plot.width);
+rect.attr('height', config.plot.height);
+
+//determining max and min value for y axis
+
+let countMin = 0;
+var countMax;
+
+
+// scales for data
+// https://github.com/d3/d3-scale-chromatic
+let scale = {};
+
+scale.x = d3.scaleBand();
+scale.x.rangeRound([0, config.plot.width], 0.5);
+scale.x.paddingInner(0.1);
+
+scale.x1 = d3.scaleBand();
+
+scale.y = d3.scaleLinear();
+scale.y.range([config.plot.height, 0]);
+
+// axes for data
+let axis = {};
+
+axis.x = d3.axisBottom(scale.x)
+            .tickPadding(0)
+            .tickSizeOuter(0)
+            .tickFormat(dateFormatter);
+
+axis.y = d3.axisLeft(scale.y)
+            .tickPadding(0)
+            .tickSizeOuter(0)
+            .tickFormat(regionFormatter);
+
+const color = d3.scaleOrdinal(d3.schemeSet1);
+
+
+// load data
+d3.csv(csv, convertRow).then(drawBarChart);
+
+let parseColumnName = d3.timeParse('%Y%m');
+
+function convertRow(row, index) {
+  let out = {};
+  out.values = [];
+
+  for (let col in row) {
+    switch(col) {
+      case 'GEO Summary':
+        out[col] = row[col];
+        break;
+
+      case 'Passenger Count':
+        out[col] = parseInt(row[col]);
+        break;
+
+      default:
+        var date = parseColumnName(row[col]);
+        var value = parseInt(row[col]);
+
+        out[col] = parseInt(row[col]);
+        out['date'] = date;
+    }
+  }
+
+  return out;
+}
+
+function drawBarChart(data) {
+  // console.log(data);
+  // console.log(data[0]);
+  console.log(data.length);
+
+  console.log(data.length);
+
+  let sortColumn = 'Activity Period';
+  data = data.sort(function(a, b) {
+    return a[sortColumn] - b[sortColumn];
+  });
+  console.log(data);
+
+
+  var nestData = d3.nest()
+    .key(function(d) {
+      return d.date;
+    })
+    .entries(data);
+  console.log("Nest Data:", nestData);
+
+  var counts = data.map(row => row['Passenger Count']);
+  // console.log(counts);
+
+  let dates = data.map(row => row['date']);
+
+  let flights = data.map(row => row['GEO Summary']);
+  // console.log(flights);
+
+  countMax = d3.max(counts);
+  console.log("[countMin, countMax]: [", countMin, ",", countMax, "]");
+
+  let categoryName = data.map(function(d) {
+    return d['GEO Summary'];
+  });
+
+  scale.x.domain(dates);
+  scale.x1.domain(categoryName).rangeRound([0, scale.x.bandwidth()]);
+  scale.y.domain([countMin, countMax]);
+  scale.y.nice();
+
+  //draw x and y axis
+  let gx = svg.append("g");
+  gx.attr("id", "x-axis");
+  gx.attr("class", "axis");
+  gx.attr("transform", translate(config.plot.x, config.plot.y + config.plot.height));
+  gx.call(axis.x)
+  .append("text")
+            .attr("x", config.plot.width/2)
+            .attr("y", 0)
+            .attr("dy", 40)
+            .style("text-anchor", "middle")
+            .style('font-weight','bold')
+            .text("Year");
+
+  let gy = svg.append("g");
+  gy.attr("id", "y-axis");
+  gy.attr("class", "axis");
+  gy.attr("transform", translate(config.plot.x, config.plot.y));
+  gy.call(axis.y)
+  .append("text")
+            .attr("transform", "rotate(-90)")
+            .attr("y",-60)
+            .attr("x", -config.plot.height/2)
+            .style("text-anchor", "middle")
+            .style('font-weight','bold')
+            .text("Passenger Count");
+
+  svg.select('.y').transition().duration(500).delay(1300).style('opacity','1');
+
+  mappedDomestic = [];
+  mappedInternational = [];
+  flightType = [];
+
+  for (let i = 0; i < counts.length; i++) {
+    if (flights[i] == "Domestic") {
+      mappedDomestic.push({
+        "time": dates[i],
+        "passengers": counts[i],
+        "type": flights[i]
+      });
+    }
+    else {
+      mappedInternational.push({
+        "time": dates[i],
+        "passengers": counts[i],
+        "type": flights[i]
+      });
+    }
+
+    if (flightType.includes(flights[i])) {
+      continue;
+    }
+    else {
+      flightType.push(
+        flights[i]
+      );
+    }
+  }
+
+  let pairsDomestic = Array.from(mappedDomestic.entries());
+  console.log("pairsDomestic:", pairsDomestic);
+
+  let allFlights = Array.from(flightType.entries());
+  console.log("all flight types:", allFlights);
+
+  var valueline = d3.line()
+    .x(function(d) {
+      return scale.x(d.date);
+    })
+    .y(function(d) {
+      return scale.y(d['Passenger Count'])
+    })
+    .curve (d3.curveMonotoneX);
+
+  let barsDomestic = plot.selectAll(".dot")
+    .data(pairsDomestic, function(d) {
+      return d;
+    })
+    .enter().append("circle")
+    .attr("id", "domestic")
+    .attr("class", "dot")
+    .attr("cx", d => scale.x(d[1].time))
+    .attr("cy", d => scale.y(d[1].passengers))
+    // .attr("height", d => config.plot.height - scale.y(d[1].passengers))
+    .style("fill", function(d) { return color(d[1].type) })
+    .attr("r", 5)
+    .each(function(d, i, nodes) {
+    // console.log("Added domestic bar for:", d[1].time);
+  });
+  
+  barsDomestic.transition().duration(500).delay(function(d,i){ return 1300 + 100 * i; });
+
+
+  let pairsInternational = Array.from(mappedInternational.entries());
+  console.log("pairsInternational:", pairsInternational);
+
+  let barsInternational = plot.selectAll(".slice")
+    .data(pairsInternational, function(d) {
+      return d;
+    })
+    .enter().append("circle")
+    .attr("id", "international")
+    .attr("class", "dot")
+    // .attr("transform",function(d) { return "translate(" + scale.x(d[1].time) + ",0)"; })
+    // .attr("width", scale.x1.bandwidth())
+    .attr("cx", d => scale.x(d[1].time))
+    .attr("cy", d => scale.y(d[1].passengers))
+    // .attr("height", d => config.plot.height - scale.y(d[1].passengers))
+    .style("fill", function(d) { return color(d[1].type) })
+    .attr("r", 5)
+    .each(function(d, i, nodes) {
+    // console.log("Added international bar for:", d[1].time);
+  });
+
+  barsInternational.transition().duration(500).delay(function(d,i){ return 1300 + 100 * i; }).style("opacity","1");
+
+  //Legend
+
+  var legend = svg.selectAll(".legend")
+      .data(flightType.map(function(d) {
+        return d;
+      }))
+      .enter().append("g")
+      .attr("class", "legend")
+      .attr("transform", function(d,i) {
+        return "translate(0," + i * 24 + ")";
+      })
+      .style("opacity", "0");
+
+  legend.append("rect")
+    .attr("x", config.plot.width - 15 - 750)
+    .attr("y", config.margin.top)
+    .attr("width", 9)
+    .attr("height", 9)
+    .style("fill", function(d) { return color(d); });
+
+  legend.append("text")
+    .attr("x", config.plot.width + - 750)
+    .attr("y", config.margin.top + 7)
+    .attr("dy", ".20em")
+    .style("text-anchor", "start")
+    .text(function(d) {return d; });
+
+    legend.transition().duration(500).delay(function(d,i){ return 1300 + 100 * i; }).style("opacity","1");
+
+}
+
+function dateFormatter(d) {
+  if (d.getMonth() < 1) {
+    return d.getFullYear().toString();
+  }
+}
+
+function regionFormatter(d) {
+  let num = parseFloat(d);
+  num = num / 1000000;
+  return num + ' M';
+}
+
+function translate(x, y) {
+  return 'translate(' + x + ',' + y + ')';
+}
+
+</script>
+</body>
+</html>
