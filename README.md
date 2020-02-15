@@ -1,12 +1,18 @@
 # README
 
-<https://usf-cs360-spring2020.github.io/template-bulma/>
+**Webpage:** <https://usf-cs360-spring2020.github.io/homework1-aryandc/>
 
 ![Profile Image](profile.png)
 
-**Name:** Aryan Dilip Choudhary  
+**Name:** Aryan Dilip Choudhary 
 **Email:** <adchoudhary@dons.usfca.edu>
 
-This is a template website using [Bulma](https://bulma.io/), [FontAwesome](https://origin.fontawesome.com/) for icons, and [Github Pages](). Designed to be modified (including this README file).
+**Major:** Masters in Computer Science
 
-*Template based on: <https://github.com/usf-cs360-spring2020/template-bulma>*
+**Graduation Date:** May 2022
+
+**Description:** MSCS Bridge student at University of San Francisco. Former research scholar at UPC, Barcelona.
+
+This is a template website using [Markdown](https://guides.github.com/features/mastering-markdown/), [Jekyll](https://jekyllrb.com/), and [Github Pages](https://pages.github.com/). Designed to be modified (including this README file).
+
+*Template based on: <https://github.com/usf-cs360-spring2020/template-basic>*
